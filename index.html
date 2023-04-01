@@ -5,10 +5,24 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+          }
+          #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            color: white;
+          }
+    </style>
+    <script src="vendor/three.js"></script>
+    <script src="vendor/cannon.js"></script>
 </head>
 <body>
-    <script src="vendor/three.js"></script>
-    <script src="vendor/ammo.js"></script>
+    <div id="score">Score: 0</div>
     <script src="index.js"></script>
 </body>
 </html>
