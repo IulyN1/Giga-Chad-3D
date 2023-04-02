@@ -3,16 +3,7 @@ const scoreElem = document.getElementById('score');
 let animationId;
 let intervalId;
 const playerSpeed = 1;
-
-// Define keyboard state object
 const keyboardState = {};
-// Add event listeners for keydown and keyup events
-window.addEventListener('keydown', (event) => {
-	keyboardState[event.key] = true;
-});
-window.addEventListener('keyup', (event) => {
-	keyboardState[event.key] = false;
-});
 
 // Set up the Three.js scene, camera and renderer
 const scene = new THREE.Scene();
@@ -26,9 +17,12 @@ camera.position.set(0, 5, 10);
 const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0);
 
+const textureLoader = new THREE.TextureLoader();
+
 // Create falling cube objects
+const enemyTexture = textureLoader.load('assets/enemy.jpg');
 const cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
-const cubeMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+const cubeMaterial = new THREE.MeshStandardMaterial({ map: enemyTexture });
 const cubes = [];
 function spawnCube() {
 	const newCubeMesh = new THREE.Mesh(cubeGeometry, cubeMaterial);
@@ -45,7 +39,14 @@ function spawnCube() {
 	newCubeMesh.userData.physicsBody = newCubeBody;
 }
 
+// Add event listeners for keydown and keyup events and document visibility change
 function addListeners() {
+	window.addEventListener('keydown', (event) => {
+		keyboardState[event.key] = true;
+	});
+	window.addEventListener('keyup', (event) => {
+		keyboardState[event.key] = false;
+	});
 	document.addEventListener('visibilitychange', handleVisibilityChange);
 }
 function removeListeners() {
@@ -69,8 +70,9 @@ addListeners();
 startInterval();
 
 // Create player object
+const playerTexture = textureLoader.load('assets/player.jpg');
 const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
-const playerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+const playerMaterial = new THREE.MeshStandardMaterial({ map: playerTexture });
 const playerMesh = new THREE.Mesh(playerGeometry, playerMaterial);
 scene.add(playerMesh);
 
@@ -80,6 +82,28 @@ world.addBody(playerBody);
 
 playerBody.linearDamping = 0.99; // Add linear damping to reduce bouncing
 playerBody.angularDamping = 0.99; // Add angular damping to reduce spinning
+
+// Create a box mesh
+const texture = textureLoader.load('assets/player.jpg');
+const geometry = new THREE.BoxGeometry(2, 2, 2);
+const material = new THREE.MeshStandardMaterial({ map: texture });
+const mesh = new THREE.Mesh(geometry, material);
+mesh.position.set(-13, 10, 0);
+scene.add(mesh);
+
+const startPosition = { x: -18, y: 10, z: 0 };
+const endPosition = { x: -13, y: 10, z: 0 };
+
+// Create a new tween
+const tween = new TWEEN.Tween(startPosition)
+	.to(endPosition, 2000) // duration is 2000ms (2 seconds)
+	.repeat(Infinity) // repeat indefinitely
+	.yoyo(true) // alternate back and forth on each repeat
+	.onUpdate(() => {
+		// update the position of the mesh
+		mesh.position.set(startPosition.x, startPosition.y, startPosition.z);
+	})
+	.start(); // start the tween
 
 // Check for collisions between the falling cubes and the player object
 function checkCollisionsPlayer() {
@@ -98,8 +122,9 @@ function checkCollisionsPlayer() {
 }
 
 // Create ground object
+const groundTexture = textureLoader.load('assets/ground.jpg');
 const groundGeometry = new THREE.PlaneGeometry(20, 20, 1, 1);
-const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x999999 });
+const groundMaterial = new THREE.MeshStandardMaterial({ map: groundTexture });
 const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
 groundMesh.rotation.x = -Math.PI / 2;
 groundMesh.position.y = -1.5;
@@ -111,7 +136,7 @@ groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
 world.addBody(groundBody);
 
 // Create light
-const light = new THREE.PointLight(0xffffff, 1, 100);
+const light = new THREE.PointLight(0xffffff, 1, 200);
 light.position.set(0, 10, 10);
 scene.add(light);
 
@@ -127,12 +152,27 @@ function checkCollisionsGround() {
 	}
 }
 
-function animate() {
-	world.step(1 / 60);
+function addMovement() {
+	if (keyboardState['ArrowLeft']) {
+		playerBody.applyImpulse(new CANNON.Vec3(-playerSpeed, 0, 0), playerBody.position);
+	}
+	if (keyboardState['ArrowRight']) {
+		playerBody.applyImpulse(new CANNON.Vec3(playerSpeed, 0, 0), playerBody.position);
+	}
+	if (keyboardState['ArrowUp']) {
+		playerBody.applyImpulse(new CANNON.Vec3(0, 0, -playerSpeed / 2), playerBody.position);
+	}
+	if (keyboardState['ArrowDown']) {
+		playerBody.applyImpulse(new CANNON.Vec3(0, 0, playerSpeed / 2), playerBody.position);
+	}
+}
 
+function animate() {
 	addMovement();
 
+	world.step(1 / 60);
 	animationId = requestAnimationFrame(animate);
+	TWEEN.update();
 
 	// Update the position of the cube meshes based on their physics bodies
 	for (let i = 0; i < cubes.length; i++) {
@@ -146,7 +186,7 @@ function animate() {
 	checkCollisionsGround();
 	checkCollisionsPlayer();
 
-	// Update player position and rotation
+	// Update position and rotation of player and ground
 	playerMesh.position.copy(playerBody.position);
 	playerMesh.quaternion.copy(playerBody.quaternion);
 
@@ -157,12 +197,3 @@ function animate() {
 }
 
 animate();
-
-function addMovement() {
-	if (keyboardState['ArrowLeft']) {
-		playerBody.applyImpulse(new CANNON.Vec3(-playerSpeed, 0, 0), playerBody.position);
-	}
-	if (keyboardState['ArrowRight']) {
-		playerBody.applyImpulse(new CANNON.Vec3(playerSpeed, 0, 0), playerBody.position);
-	}
-}
